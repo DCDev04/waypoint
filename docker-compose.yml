@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: waypoint_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: waypoint_user
+      POSTGRES_PASSWORD: waypoint_pass
+      POSTGRES_DB: waypoint_dev
+    ports:
+      - "5433:5432"
+    volumes:
+      - waypoint_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  waypoint_postgres_data:
