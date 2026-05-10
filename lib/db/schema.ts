@@ -2,7 +2,6 @@
 
 import { pgTable, text, timestamp, uuid, pgEnum } from "drizzle-orm/pg-core"
 
-// --- Enums ---
 export const userRoleEnum = pgEnum("user_role", [
   "ADMIN",
   "DEVELOPER",
@@ -16,7 +15,6 @@ export const workflowStatusEnum = pgEnum("workflow_status", [
   "REJECTED",
 ])
 
-// --- Tables ---
 export const departments = pgTable("departments", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
