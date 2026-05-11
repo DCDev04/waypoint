@@ -1,0 +1,2 @@
+ALTER TABLE "workflows" ADD COLUMN "search_vector" text GENERATED ALWAYS AS (to_tsvector('english', coalesce(title, '') || ' ' || coalesce(content, ''))) STORED NOT NULL;--> statement-breakpoint
+CREATE INDEX "workflows_search_idx" ON "workflows" USING gin (to_tsvector('english', coalesce("title", '') || ' ' || coalesce("content", '')));

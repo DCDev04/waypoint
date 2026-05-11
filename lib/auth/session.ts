@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth"
 import { headers } from "next/headers"
 import { db } from "@/lib/db"
 import { users } from "@/lib/db/schema"
-import { eq } from "drizzle-orm/"
+import { eq } from "drizzle-orm"
 
 export type UserRole = "ADMIN" | "DEVELOPER" | "REPRESENTATIVE"
 export type SessionUser = {

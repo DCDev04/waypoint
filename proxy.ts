@@ -30,13 +30,10 @@ export default async function proxy(request: NextRequest) {
   // Real enforcement happens in the layout and data layer.
   const isAdminRoute = ADMIN_ROUTES.some((route) => pathname.startsWith(route))
 
-  if (isAdminRoute) {
+  if (isAdminRoute && session.user.role !== "ADMIN") {
     // We can't easily query the DB here — that's fine.
     // We store role in a cookie during sign-in (see Step 4).
-    const role = request.cookies.get("waypoint_role")?.value
-    if (role !== "ADMIN") {
-      return NextResponse.redirect(new URL("/unauthorized", request.url))
-    }
+    return NextResponse.redirect(new URL("/unauthorized", request.url))
   }
 
   return NextResponse.next()
