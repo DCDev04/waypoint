@@ -2,10 +2,11 @@ import { betterAuth } from "better-auth"
 import { db } from "./db"
 import { drizzleAdapter } from "@better-auth/drizzle-adapter"
 import { nextCookies } from "better-auth/next-js"
-
+import * as authSchema from "@/lib/db/auth-schema"
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
+    schema: authSchema,
   }),
   emailAndPassword: {
     enabled: true,

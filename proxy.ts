@@ -18,6 +18,9 @@ export default async function proxy(request: NextRequest) {
     headers: request.headers,
   })
 
+  if (session && isPublic && !pathname.startsWith("/api/auth")) {
+    return NextResponse.redirect(new URL("/workflows", request.url))
+  }
   // 3. No session → redirect to login
   if (!session) {
     const loginUrl = new URL("/login", request.url)

@@ -10,7 +10,8 @@
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
-    "seed": "dotenv -e .env -- pnpm dlx tsx lib/db/seed.ts"
+    "seed": "dotenv -e .env -- pnpm dlx tsx lib/db/seed.ts",
+    "studio": "pnpm drizzle-kit studio"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.6.10",

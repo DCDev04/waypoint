@@ -14,31 +14,27 @@ import { SearchHighlight } from "@/features/workflows/components/search.highligh
 import { WorkflowStatus } from "@/features/workflows/types"
 
 type Props = {
-  searchParams: {
+  searchParams: Promise<{
     q?: string
     status?: string
     dept?: string
-  }
+  }>
 }
 
 export default async function WorkflowsPage({ searchParams }: Props) {
   const user = await getSessionUser()
   if (!user) redirect("/login")
-
+  const { q, dept, status } = await searchParams
   const [allDepartments, workflows] = await Promise.all([
     db.select().from(departments),
     getWorkflows(user.id, user.role, user.departmentId ?? null, {
-      query: searchParams.q,
-      status: searchParams.status,
-      departmentId: searchParams.dept,
+      query: q,
+      status: status,
+      departmentId: dept,
     }),
   ])
 
-  const hasActiveSearch = !!(
-    searchParams.q ||
-    searchParams.status ||
-    searchParams.dept
-  )
+  const hasActiveSearch = !!(q || status || dept)
 
   return (
     <div className="space-y-6">
@@ -79,10 +75,7 @@ export default async function WorkflowsPage({ searchParams }: Props) {
             >
               <div className="min-w-0 space-y-1">
                 <p className="truncate font-medium">
-                  <SearchHighlight
-                    text={workflow.title}
-                    query={searchParams.q}
-                  />
+                  <SearchHighlight text={workflow.title} query={q} />
                 </p>
                 <p className="text-xs text-muted-foreground">
                   v{workflow.version} · Updated{" "}
@@ -100,7 +93,7 @@ export default async function WorkflowsPage({ searchParams }: Props) {
           <div className="space-y-2 p-12 text-center">
             <p className="text-muted-foreground">
               {hasActiveSearch
-                ? `No workflows found for "${searchParams.q ?? ""}"`
+                ? `No workflows found for "${q ?? ""}"`
                 : "No workflows yet."}
             </p>
             {hasActiveSearch && (

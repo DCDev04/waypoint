@@ -1,5 +1,6 @@
 import Link from "next/link"
 import type { SessionUser } from "@/lib/auth/session"
+import { SignOutButton } from "@/features/auth/components/sign-out"
 
 const NAV_ITEMS = [
   {
@@ -49,6 +50,9 @@ export function SidebarNav({ user }: { user: SessionUser }) {
           </Link>
         ))}
       </nav>
+      <div className="mt-auto border-t pt-4">
+        <SignOutButton />
+      </div>
     </aside>
   )
 }

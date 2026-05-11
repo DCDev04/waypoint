@@ -17,11 +17,14 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex min-h-screen">
-      {/* Nav is aware of role — shows/hides items accordingly */}
-      <SidebarNav user={user} />
+    <div className="flex h-screen overflow-hidden">
+      {/* Sidebar stays fixed */}
+      <aside className="sticky top-0 flex h-screen">
+        <SidebarNav user={user} />
+      </aside>
 
-      <main className="flex-1 p-6">{children}</main>
+      {/* Only main content scrolls */}
+      <main className="flex-1 overflow-y-auto p-6">{children}</main>
     </div>
   )
 }
