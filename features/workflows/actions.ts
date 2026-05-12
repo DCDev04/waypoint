@@ -8,71 +8,123 @@ import {
   requireAdminOrDeveloper,
   requireRole,
 } from "@/lib/auth/session"
-import { revalidatePath } from "next/cache"
+import { revalidatePath, updateTag } from "next/cache"
 import { redirect } from "next/navigation"
 import { ActionResult } from "./types"
+import { workflowSchema } from "./schema"
 
 // ─── CREATE ──────────────────────────────────────────────────────────────────
+export type WorkflowActionState = {
+  error?: string
+  fieldErrors?: Record<string, string[]>
+  success?: boolean
+}
 
-export async function createWorkflow(formData: FormData) {
-  const user = await requireAdminOrDeveloper()
+export async function createWorkflow(
+  prevState: WorkflowActionState,
+  formData: FormData
+): Promise<WorkflowActionState> {
+  try {
+    const user = await requireAdminOrDeveloper()
 
-  const title = formData.get("title") as string
-  const content = formData.get("content") as string
-  const departmentId = formData.get("departmentId") as string
+    const raw = {
+      title: formData.get("title") as string,
+      departmentId: formData.get("departmentId") as string,
+      content: formData.get("content") as string,
+    }
 
-  if (!title || !departmentId) {
-    return { success: false, error: "Title and department are required." }
+    // Validate with Zod on the server too — never trust the client
+    const parsed = workflowSchema.safeParse(raw)
+
+    if (!parsed.success) {
+      return {
+        fieldErrors: parsed.error.flatten().fieldErrors,
+      }
+    }
+
+    const [workflow] = await db
+      .insert(workflows)
+      .values({
+        title: parsed.data.title,
+        content: parsed.data.content,
+        departmentId: parsed.data.departmentId,
+        status: "DRAFT",
+        version: "1",
+        createdBy: user.id,
+      })
+      .returning()
+
+    updateTag("workflows")
+    redirect(`/workflows/${workflow.id}`)
+  } catch (err: unknown) {
+    const error = err as NextRedirectError
+
+    if (error.digest?.startsWith("NEXT_REDIRECT")) {
+      throw err
+    }
+
+    return { error: "Failed to create workflow. Please try again." }
   }
-
-  const [workflow] = await db
-    .insert(workflows)
-    .values({
-      title,
-      content: content ?? "",
-      status: "DRAFT",
-      version: "1",
-      departmentId,
-      createdBy: user.id,
-    })
-    .returning()
-
-  revalidatePath("/workflows")
-  redirect(`/workflows/${workflow.id}/edit`)
 }
 
 // ─── UPDATE (DRAFT ONLY) ──────────────────────────────────────────────────────
+type NextRedirectError = {
+  digest?: string
+}
+export async function updateWorkflow(
+  id: string,
+  prevState: WorkflowActionState,
+  formData: FormData
+): Promise<WorkflowActionState> {
+  try {
+    await requireAdminOrDeveloper()
 
-export async function updateWorkflow(id: string, formData: FormData) {
-  const user = await requireAdminOrDeveloper()
-
-  const [existing] = await db
-    .select()
-    .from(workflows)
-    .where(eq(workflows.id, id))
-    .limit(1)
-
-  if (!existing) return { success: false, error: "Workflow not found." }
-
-  // Only allow editing DRAFT or REJECTED workflows
-  if (!["DRAFT", "REJECTED"].includes(existing.status)) {
-    return {
-      success: false,
-      error: "Only draft or rejected workflows can be edited.",
-    }
-  }
-
-  await db
-    .update(workflows)
-    .set({
+    const raw = {
       title: formData.get("title") as string,
+      departmentId: (formData.get("departmentId") as string) ?? "placeholder", // not edited
       content: formData.get("content") as string,
-      updatedAt: new Date(),
-    })
-    .where(eq(workflows.id, id))
+    }
 
-  revalidatePath(`/workflows/${id}`)
-  return { success: true }
+    const parsed = workflowSchema.safeParse(raw)
+
+    if (!parsed.success) {
+      return {
+        fieldErrors: parsed.error.flatten().fieldErrors,
+      }
+    }
+
+    const [existing] = await db
+      .select()
+      .from(workflows)
+      .where(eq(workflows.id, id))
+      .limit(1)
+
+    if (!existing) return { error: "Workflow not found." }
+
+    if (!["DRAFT", "REJECTED"].includes(existing.status)) {
+      return { error: "Only draft or rejected workflows can be edited." }
+    }
+
+    await db
+      .update(workflows)
+      .set({
+        title: parsed.data.title,
+        content: parsed.data.content,
+        updatedAt: new Date(),
+      })
+      .where(eq(workflows.id, id))
+
+    updateTag(`workflow-${id}`)
+    redirect(`/workflows/${id}`)
+  } catch (err: unknown) {
+    const error = err as NextRedirectError
+
+    if (error.digest?.startsWith("NEXT_REDIRECT")) {
+      throw err
+    }
+
+    return { error: "Failed to update workflow. Please try again." }
+  }
 }
 
 // ─── SUBMIT FOR APPROVAL ──────────────────────────────────────────────────────

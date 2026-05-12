@@ -2,79 +2,207 @@
 
 "use client"
 
-import { useState } from "react"
+import { useActionState, useEffect } from "react"
+import { useForm, Controller } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { workflowSchema, type WorkflowFormValues } from "../schema"
+import {
+  createWorkflow,
+  updateWorkflow,
+  type WorkflowActionState,
+} from "../actions"
 import { WorkflowEditor } from "./workflow-editor"
-import { createWorkflow, updateWorkflow } from "../actions"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+
+type Department = { id: string; name: string }
 
 type Props = {
-  workflowId?: string // if present = edit mode
-  initialTitle?: string
-  initialContent?: string
-  departments: { id: string; name: string }[]
+  // Edit mode — pass existing workflow data
+  workflowId?: string
+  defaultValues?: Partial<WorkflowFormValues>
+  departments: Department[]
 }
 
 export function WorkflowForm({
   workflowId,
-  initialTitle = "",
-  initialContent = "",
+  defaultValues,
   departments,
 }: Props) {
-  const [content, setContent] = useState(initialContent)
   const isEditing = !!workflowId
 
-  async function handleSubmit(formData: FormData) {
-    formData.set("content", content)
+  // Bind the workflowId into the action for edit mode
+  const action = isEditing
+    ? updateWorkflow.bind(null, workflowId)
+    : createWorkflow
 
-    if (isEditing) {
-      await updateWorkflow(workflowId, formData)
-    } else {
-      await createWorkflow(formData)
+  const [serverState, formAction, isPending] = useActionState(
+    action as (
+      prev: WorkflowActionState,
+      formData: FormData
+    ) => Promise<WorkflowActionState>,
+    {}
+  )
+
+  const {
+    register,
+    control,
+    handleSubmit,
+    setValue,
+    setError,
+    formState: { errors, isDirty },
+  } = useForm<WorkflowFormValues>({
+    resolver: zodResolver(workflowSchema),
+    defaultValues: {
+      title: defaultValues?.title ?? "",
+      departmentId: defaultValues?.departmentId ?? "",
+      content: defaultValues?.content ?? "",
+    },
+  })
+
+  // Map server-side field errors back into RHF
+  useEffect(() => {
+    if (serverState.fieldErrors) {
+      Object.entries(serverState.fieldErrors).forEach(([field, messages]) => {
+        setError(field as keyof WorkflowFormValues, {
+          message: messages?.[0],
+        })
+      })
     }
+  }, [serverState, setError])
+
+  // RHF validates client-side first, then submits via server action
+  function onSubmit(_values: WorkflowFormValues, e?: React.BaseSyntheticEvent) {
+    const form = e?.target as HTMLFormElement
+    formAction(new FormData(form))
   }
 
   return (
-    <form action={handleSubmit} className="space-y-6">
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Title</label>
-        <input
-          name="title"
-          defaultValue={initialTitle}
-          placeholder="e.g. Customer Refund Process"
-          className="w-full rounded-md border px-3 py-2 text-sm"
-          required
-        />
-      </div>
-
-      {!isEditing && (
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Department</label>
-          <select
-            name="departmentId"
-            className="w-full rounded-md border px-3 py-2 text-sm"
-            required
-          >
-            <option value="">Select a department...</option>
-            {departments.map((dept) => (
-              <option key={dept.id} value={dept.id}>
-                {dept.name}
-              </option>
-            ))}
-          </select>
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      {/* Global server error */}
+      {serverState.error && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          {serverState.error}
         </div>
       )}
 
+      {/* Title */}
       <div className="space-y-2">
-        <label className="text-sm font-medium">Content</label>
-        <WorkflowEditor content={content} onChange={setContent} />
+        <Label htmlFor="title">
+          Title <span className="text-red-500">*</span>
+        </Label>
+        <Input
+          id="title"
+          placeholder="e.g. Customer Refund Process"
+          {...register("title")}
+          aria-invalid={!!errors.title}
+        />
+        {errors.title && (
+          <p className="text-xs text-red-600">{errors.title.message}</p>
+        )}
       </div>
 
-      <div className="flex gap-3">
-        <button
-          type="submit"
-          className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground"
-        >
-          {isEditing ? "Save Changes" : "Create Workflow"}
-        </button>
+      {/* Department — only on create */}
+      {!isEditing && (
+        <div className="space-y-2">
+          <Label htmlFor="departmentId">
+            Department <span className="text-red-500">*</span>
+          </Label>
+
+          {/* Controller bridges RHF with shadcn Select (non-native input) */}
+          <Controller
+            name="departmentId"
+            control={control}
+            render={({ field }) => (
+              <>
+                {/* Hidden input so FormData picks it up */}
+                <input type="hidden" name="departmentId" value={field.value} />
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
+                  <SelectTrigger aria-invalid={!!errors.departmentId}>
+                    <SelectValue placeholder="Select a department..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.map((dept) => (
+                      <SelectItem key={dept.id} value={dept.id}>
+                        {dept.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </>
+            )}
+          />
+          {errors.departmentId && (
+            <p className="text-xs text-red-600">
+              {errors.departmentId.message}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Content — Tiptap via Controller */}
+      <div className="space-y-2">
+        <Label>
+          Content <span className="text-red-500">*</span>
+        </Label>
+
+        <Controller
+          name="content"
+          control={control}
+          render={({ field }) => (
+            <>
+              {/* Hidden input so FormData picks it up */}
+              <input type="hidden" name="content" value={field.value} />
+              <WorkflowEditor
+                content={field.value}
+                onChangeCallback={(html) => {
+                  field.onChange(html)
+                  setValue("content", html, { shouldDirty: true })
+                }}
+                editable={true}
+              />
+            </>
+          )}
+        />
+        {errors.content && (
+          <p className="text-xs text-red-600">{errors.content.message}</p>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between border-t pt-4">
+        <p className="text-xs text-muted-foreground">
+          {isDirty ? "You have unsaved changes" : ""}
+        </p>
+        <div className="flex gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => window.history.back()}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isPending}>
+            {isPending
+              ? isEditing
+                ? "Saving..."
+                : "Creating..."
+              : isEditing
+                ? "Save Changes"
+                : "Create Workflow"}
+          </Button>
+        </div>
       </div>
     </form>
   )
