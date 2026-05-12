@@ -10,8 +10,12 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { RegisterForm } from "@/features/auth/components/register"
+import { getSessionUser } from "@/lib/auth/session"
+import { redirect } from "next/navigation"
 
-export default function RegisterPage() {
+export default async function RegisterPage() {
+  const user = await getSessionUser()
+  if (user) redirect("/workflows")
   return (
     <Card>
       <CardHeader>

@@ -17,3 +17,5 @@ export type WorkflowWithMeta = Workflow & {
   department: { name: string; slug: string }
   author: { name: string; email: string }
 }
+
+export type ActionResult = { success: true } | { success: false; error: string }

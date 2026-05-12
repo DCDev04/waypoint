@@ -1,5 +1,3 @@
-// features/workflows/actions.ts
-
 "use server"
 
 import { db } from "@/lib/db"
@@ -12,6 +10,7 @@ import {
 } from "@/lib/auth/session"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
+import { ActionResult } from "./types"
 
 // ─── CREATE ──────────────────────────────────────────────────────────────────
 
@@ -23,7 +22,7 @@ export async function createWorkflow(formData: FormData) {
   const departmentId = formData.get("departmentId") as string
 
   if (!title || !departmentId) {
-    return { error: "Title and department are required." }
+    return { success: false, error: "Title and department are required." }
   }
 
   const [workflow] = await db
@@ -53,11 +52,14 @@ export async function updateWorkflow(id: string, formData: FormData) {
     .where(eq(workflows.id, id))
     .limit(1)
 
-  if (!existing) return { error: "Workflow not found." }
+  if (!existing) return { success: false, error: "Workflow not found." }
 
   // Only allow editing DRAFT or REJECTED workflows
   if (!["DRAFT", "REJECTED"].includes(existing.status)) {
-    return { error: "Only draft or rejected workflows can be edited." }
+    return {
+      success: false,
+      error: "Only draft or rejected workflows can be edited.",
+    }
   }
 
   await db
@@ -76,18 +78,28 @@ export async function updateWorkflow(id: string, formData: FormData) {
 // ─── SUBMIT FOR APPROVAL ──────────────────────────────────────────────────────
 // DRAFT → PENDING
 
-export async function submitForApproval(id: string) {
+export async function submitForApproval(id: string): Promise<ActionResult> {
   const user = await requireAdminOrDeveloper()
-
+  await new Promise((r) => setTimeout(r, 350))
   const [existing] = await db
     .select()
     .from(workflows)
     .where(eq(workflows.id, id))
     .limit(1)
 
-  if (!existing) return { error: "Workflow not found." }
+  if (!existing) return { success: false, error: "Workflow not found." }
   if (existing.status !== "DRAFT" && existing.status !== "REJECTED") {
-    return { error: "Only draft or rejected workflows can be submitted." }
+    return {
+      success: false,
+      error: "Only draft or rejected workflows can be submitted.",
+    }
+  }
+
+  if (existing.status !== "DRAFT" && existing.status !== "REJECTED") {
+    return {
+      success: false,
+      error: "Only draft or rejected workflows can be submitted.",
+    }
   }
 
   await db
@@ -103,7 +115,7 @@ export async function submitForApproval(id: string) {
 // ─── APPROVE ─────────────────────────────────────────────────────────────────
 // PENDING → PUBLISHED
 
-export async function approveWorkflow(id: string) {
+export async function approveWorkflow(id: string): Promise<ActionResult> {
   const user = await requireRole("ADMIN")
 
   const [existing] = await db
@@ -112,9 +124,9 @@ export async function approveWorkflow(id: string) {
     .where(eq(workflows.id, id))
     .limit(1)
 
-  if (!existing) return { error: "Workflow not found." }
+  if (!existing) return { success: false, error: "Workflow not found." }
   if (existing.status !== "PENDING") {
-    return { error: "Only pending workflows can be approved." }
+    return { success: false, error: "Only pending workflows can be approved." }
   }
 
   // Bump version number
@@ -146,7 +158,10 @@ export async function approveWorkflow(id: string) {
 // ─── REJECT ───────────────────────────────────────────────────────────────────
 // PENDING → REJECTED
 
-export async function rejectWorkflow(id: string, reason: string) {
+export async function rejectWorkflow(
+  id: string,
+  reason: string
+): Promise<ActionResult> {
   await requireRole("ADMIN")
 
   const [existing] = await db
@@ -155,9 +170,9 @@ export async function rejectWorkflow(id: string, reason: string) {
     .where(eq(workflows.id, id))
     .limit(1)
 
-  if (!existing) return { error: "Workflow not found." }
+  if (!existing) return { success: false, error: "Workflow not found." }
   if (existing.status !== "PENDING") {
-    return { error: "Only pending workflows can be rejected." }
+    return { success: false, error: "Only pending workflows can be rejected." }
   }
 
   // Store rejection reason in content temporarily so dev can see it

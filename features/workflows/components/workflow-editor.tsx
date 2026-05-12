@@ -1,5 +1,4 @@
 "use client"
-
 import { useEditor, EditorContent } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 import Link from "@tiptap/extension-link"
@@ -7,11 +6,15 @@ import Placeholder from "@tiptap/extension-placeholder"
 
 type Props = {
   content: string
-  onChange: (content: string) => void
+  onChangeCallback?: (content: string) => void
   editable?: boolean
 }
 
-export function WorkflowEditor({ content, onChange, editable = true }: Props) {
+export function WorkflowEditor({
+  content,
+  onChangeCallback,
+  editable = true,
+}: Props) {
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -28,7 +31,7 @@ export function WorkflowEditor({ content, onChange, editable = true }: Props) {
     editable,
     immediatelyRender: false, // ← required for Next.js SSR
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML())
+      onChangeCallback?.(editor.getHTML())
     },
   })
 
@@ -90,7 +93,7 @@ export function WorkflowEditor({ content, onChange, editable = true }: Props) {
       {/* Editor body */}
       <EditorContent
         editor={editor}
-        className="prose prose-sm min-h-[300px] max-w-none p-4 focus-within:outline-none"
+        className="prose prose-sm min-h-[300px] max-w-none p-4 focus-within:outline-none dark:prose-invert dark:prose-headings:text-white dark:prose-p:text-white dark:prose-blockquote:text-gray-300 dark:prose-strong:text-white dark:prose-li:text-white"
       />
     </div>
   )

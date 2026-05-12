@@ -1,5 +1,4 @@
 // app/(dashboard)/page.tsx
-
 import { getSessionUser } from "@/lib/auth/session"
 import { redirect } from "next/navigation"
 import { db } from "@/lib/db"

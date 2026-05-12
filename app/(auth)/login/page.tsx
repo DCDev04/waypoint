@@ -8,8 +8,12 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { LoginForm } from "@/features/auth/components/login-form"
+import { getSessionUser } from "@/lib/auth/session"
+import { redirect } from "next/navigation"
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const user = await getSessionUser()
+  if (user) redirect("/workflows")
   return (
     <Card>
       <CardHeader>

@@ -11,16 +11,20 @@ import {
 import { redirect, notFound } from "next/navigation"
 import Link from "next/link"
 import { WorkflowStatus } from "@/features/workflows/types"
+import { ActionButton } from "@/features/workflows/components/action-button"
 
 export default async function WorkflowPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
   const user = await getSessionUser()
   if (!user) redirect("/login")
 
-  const workflow = await getWorkflowById(params.id)
+  const { id } = await params
+
+  const workflow = await getWorkflowById(id)
+
   if (!workflow) notFound()
 
   return (
@@ -54,68 +58,43 @@ export default async function WorkflowPage({
           {/* Submit for approval */}
           {["DRAFT", "REJECTED"].includes(workflow.status) && (
             <RoleGate allowedRoles={["ADMIN", "DEVELOPER"]}>
-              <form
-                action={() => {
-                  submitForApproval.bind(null, workflow.id)
-                  // success/error handling here
-                }}
-              >
-                <button
-                  type="submit"
-                  className="rounded-md bg-yellow-500 px-3 py-1.5 text-sm text-white"
-                >
-                  Submit for Approval
-                </button>
-              </form>
+              <ActionButton
+                action={submitForApproval.bind(null, workflow.id)}
+                idleText="Submit for Approval"
+                pendingText="Submitting..."
+                successMessage="Workflow submitted."
+              />
             </RoleGate>
           )}
 
           {/* Approve */}
           {workflow.status === "PENDING" && (
             <RoleGate allowedRoles={["ADMIN"]}>
-              <form
-                action={() => {
-                  approveWorkflow.bind(null, workflow.id)
-                  // success/error handling here
-                }}
-              >
-                <button
-                  type="submit"
-                  className="rounded-md bg-green-600 px-3 py-1.5 text-sm text-white"
-                >
-                  Approve
-                </button>
-              </form>
+              <ActionButton
+                action={approveWorkflow.bind(null, workflow.id)}
+                idleText="Approve"
+                pendingText="Approving..."
+                successMessage="Workflow approved."
+              />
             </RoleGate>
           )}
 
           {/* Reject */}
           {workflow.status === "PENDING" && (
             <RoleGate allowedRoles={["ADMIN"]}>
-              <form
-                action={() => {
-                  rejectWorkflow.bind(null, workflow.id, "need revision") // modify this when we have a dedicate comment for reject for admin | tl
-                  // success/error handling here
-                }}
-              >
-                <button
-                  type="submit"
-                  className="rounded-md bg-red-600 px-3 py-1.5 text-sm text-white"
-                >
-                  Reject
-                </button>
-              </form>
+              <ActionButton
+                action={rejectWorkflow.bind(null, workflow.id, "need revision")}
+                idleText="Reject"
+                pendingText="Rejecting..."
+                successMessage="Workflow Reject. reasson: need revision "
+              />
             </RoleGate>
           )}
         </div>
       </div>
 
       {/* Read-only editor — renders content safely */}
-      <WorkflowEditor
-        content={workflow.content}
-        onChange={() => {}}
-        editable={false}
-      />
+      <WorkflowEditor content={workflow.content} editable={false} />
     </div>
   )
 }
