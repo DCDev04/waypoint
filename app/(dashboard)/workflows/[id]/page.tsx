@@ -28,7 +28,7 @@ export default async function WorkflowPage({
   if (!workflow) notFound()
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto w-3/4 space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">

@@ -2,7 +2,12 @@
 
 "use client"
 
-import { useActionState, useEffect } from "react"
+import {
+  startTransition,
+  useActionState,
+  useEffect,
+  useTransition,
+} from "react"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { workflowSchema, type WorkflowFormValues } from "../schema"
@@ -82,7 +87,9 @@ export function WorkflowForm({
   // RHF validates client-side first, then submits via server action
   function onSubmit(_values: WorkflowFormValues, e?: React.BaseSyntheticEvent) {
     const form = e?.target as HTMLFormElement
-    formAction(new FormData(form))
+    startTransition(() => {
+      formAction(new FormData(form))
+    })
   }
 
   return (
@@ -123,7 +130,6 @@ export function WorkflowForm({
             control={control}
             render={({ field }) => (
               <>
-                {/* Hidden input so FormData picks it up */}
                 <input type="hidden" name="departmentId" value={field.value} />
                 <Select
                   onValueChange={field.onChange}

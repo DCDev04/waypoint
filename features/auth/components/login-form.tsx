@@ -1,5 +1,3 @@
-// features/auth/components/login-form.tsx
-
 "use client"
 
 import { useState } from "react"
@@ -34,7 +32,6 @@ export function LoginForm() {
       setLoading(false)
       return
     }
-
     router.push("/workflows")
     router.refresh()
   }
@@ -66,9 +63,7 @@ export function LoginForm() {
       </div>
 
       {error && (
-        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
-          {error}
-        </div>
+        <div className="rounded-md px-3 py-2 text-sm text-red-500">{error}</div>
       )}
 
       <Button type="submit" className="w-full" disabled={loading}>

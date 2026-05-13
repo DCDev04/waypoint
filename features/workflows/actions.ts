@@ -3,11 +3,7 @@
 import { db } from "@/lib/db"
 import { workflows, workflowVersions } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
-import {
-  requireAuth,
-  requireAdminOrDeveloper,
-  requireRole,
-} from "@/lib/auth/session"
+import { requireAdminOrDeveloper, requireRole } from "@/lib/auth/session"
 import { revalidatePath, updateTag } from "next/cache"
 import { redirect } from "next/navigation"
 import { ActionResult } from "./types"
@@ -24,6 +20,7 @@ export async function createWorkflow(
   prevState: WorkflowActionState,
   formData: FormData
 ): Promise<WorkflowActionState> {
+  let workflowId: string | null = null
   try {
     const user = await requireAdminOrDeveloper()
 
@@ -54,8 +51,8 @@ export async function createWorkflow(
       })
       .returning()
 
+    workflowId = workflow.id
     updateTag("workflows")
-    redirect(`/workflows/${workflow.id}`)
   } catch (err: unknown) {
     const error = err as NextRedirectError
 
@@ -65,6 +62,11 @@ export async function createWorkflow(
 
     return { error: "Failed to create workflow. Please try again." }
   }
+  if (workflowId) {
+    redirect(`/workflows/${workflowId}`)
+  }
+
+  return { error: "Something went wrong." }
 }
 
 // ─── UPDATE (DRAFT ONLY) ──────────────────────────────────────────────────────
