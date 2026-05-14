@@ -1,21 +1,14 @@
-# Next.js template
+# Features to be added/refactor
 
-This is a Next.js template with shadcn/ui.
+1.  search functionality suck
+2.  need a way for us to update published workflow
 
-## Adding components
+## features by users
 
-To add components to your app, run the following command:
+#### By representative
 
-```bash
-npx shadcn@latest add button
-```
+#### By developer
 
-This will place the ui components in the `components` directory.
+#### By admin
 
-## Using components
-
-To use the components in your app, import them as follows:
-
-```tsx
-import { Button } from "@/components/ui/button";
-```
+1. admin panel

@@ -12,6 +12,7 @@ import { redirect, notFound } from "next/navigation"
 import Link from "next/link"
 import { WorkflowStatus } from "@/features/workflows/types"
 import { ActionButton } from "@/features/workflows/components/action-button"
+import { getDevelopers } from "@/features/auth/queries"
 
 export default async function WorkflowPage({
   params,
@@ -23,7 +24,10 @@ export default async function WorkflowPage({
 
   const { id } = await params
 
-  const workflow = await getWorkflowById(id)
+  const [workflow, developersName] = await Promise.all([
+    getWorkflowById(id),
+    getDevelopers(),
+  ])
 
   if (!workflow) notFound()
 
@@ -38,6 +42,12 @@ export default async function WorkflowPage({
             <span className="text-xs text-muted-foreground">
               v{workflow.version}
             </span>
+            <RoleGate allowedRoles={["ADMIN", "DEVELOPER"]}>
+              <span className="text-xs text-muted-foreground">
+                created by:{" "}
+                {developersName.find((d) => d.id === workflow.createdBy)?.name}
+              </span>
+            </RoleGate>
           </div>
         </div>
 

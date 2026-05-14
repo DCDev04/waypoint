@@ -92,9 +92,6 @@ importers:
       tiptap-extension-global-drag-handle:
         specifier: ^0.1.18
         version: 0.1.18
-      tiptap-extension-resize-image:
-        specifier: ^1.4.0
-        version: 1.4.0(@tiptap/core@3.23.1(@tiptap/pm@3.23.1))(@tiptap/extension-image@3.23.1(@tiptap/core@3.23.1(@tiptap/pm@3.23.1)))(@tiptap/pm@3.23.1)
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
@@ -4777,13 +4774,6 @@ packages:
 
   tiptap-extension-global-drag-handle@0.1.18:
     resolution: {integrity: sha512-jwFuy1K8DP3a4bFy76Hpc63w1Sil0B7uZ3mvhQomVvUFCU787Lg2FowNhn7NFzeyok761qY2VG+PZ/FDthWUdg==}
-
-  tiptap-extension-resize-image@1.4.0:
-    resolution: {integrity: sha512-4CbzgJyY0xyRGGXUa1JmC9KQwdFN5OgFahbvnn+5IRpbLH1yfbDVEHZ6WSLA42qiwtxOoa6XUSqkTS/QMULQYQ==}
-    peerDependencies:
-      '@tiptap/core': ^2.0.0 || ^3.0.0
-      '@tiptap/extension-image': ^2.0.0 || ^3.0.0
-      '@tiptap/pm': ^2.0.0 || ^3.0.0
 
   tldts-core@7.0.30:
     resolution: {integrity: sha512-uiHN8PIB1VmWyS98eZYja4xzlYqeFZVjb4OuYlJQnZAuJhMw4PbKQOKgHKhBdJR3FE/t5mUQ1Kd80++B+qhD1Q==}
@@ -9643,12 +9633,6 @@ snapshots:
       picomatch: 4.0.4
 
   tiptap-extension-global-drag-handle@0.1.18: {}
-
-  tiptap-extension-resize-image@1.4.0(@tiptap/core@3.23.1(@tiptap/pm@3.23.1))(@tiptap/extension-image@3.23.1(@tiptap/core@3.23.1(@tiptap/pm@3.23.1)))(@tiptap/pm@3.23.1):
-    dependencies:
-      '@tiptap/core': 3.23.1(@tiptap/pm@3.23.1)
-      '@tiptap/extension-image': 3.23.1(@tiptap/core@3.23.1(@tiptap/pm@3.23.1))
-      '@tiptap/pm': 3.23.1
 
   tldts-core@7.0.30: {}
 

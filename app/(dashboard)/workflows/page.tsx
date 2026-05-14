@@ -12,6 +12,7 @@ import { Suspense } from "react"
 import { WorkflowFilters } from "@/features/workflows/components/workflow-filter"
 import { SearchHighlight } from "@/features/workflows/components/search.highlight"
 import { WorkflowStatus } from "@/features/workflows/types"
+import { getDevelopers } from "@/features/auth/queries"
 
 type Props = {
   searchParams: Promise<{
@@ -25,13 +26,14 @@ export default async function WorkflowsPage({ searchParams }: Props) {
   const user = await getSessionUser()
   if (!user) redirect("/login")
   const { q, dept, status } = await searchParams
-  const [allDepartments, workflows] = await Promise.all([
+  const [allDepartments, workflows, developersName] = await Promise.all([
     db.select().from(departments),
     getWorkflows(user.id, user.role, user.departmentId ?? null, {
       query: q,
       status: status,
       departmentId: dept,
     }),
+    getDevelopers(),
   ])
 
   const hasActiveSearch = !!(q || status || dept)
@@ -85,6 +87,15 @@ export default async function WorkflowsPage({ searchParams }: Props) {
                     year: "numeric",
                   })}
                 </p>
+                <RoleGate allowedRoles={["ADMIN", "DEVELOPER"]}>
+                  <p className="text-xs text-muted-foreground">
+                    Created by:{" "}
+                    {
+                      developersName.find((d) => d.id === workflow.createdBy)
+                        ?.name
+                    }
+                  </p>
+                </RoleGate>
               </div>
               <WorkflowStatusBadge status={workflow.status as WorkflowStatus} />
             </Link>

@@ -1,16 +1,14 @@
-// features/workflows/components/workflow-editor.tsx
-
 "use client"
-
-import { BubbleMenu } from "@tiptap/react/menus"
 import { useEditor, EditorContent } from "@tiptap/react"
+import { BubbleMenu } from "@tiptap/react/menus"
 import StarterKit from "@tiptap/starter-kit"
 import Link from "@tiptap/extension-link"
 import Placeholder from "@tiptap/extension-placeholder"
-import ImageResize from "tiptap-extension-resize-image" // ← replaces @tiptap/extension-image
+import Image from "@tiptap/extension-image"
 import GlobalDragHandle from "tiptap-extension-global-drag-handle"
 import { useUploadThing } from "@/lib/uploadthing"
 import { useRef, useState } from "react"
+import { NodeSelection } from "@tiptap/pm/state"
 
 type Props = {
   content: string
@@ -24,12 +22,9 @@ export function WorkflowEditor({
   editable = true,
 }: Props) {
   const imageInputRef = useRef<HTMLInputElement>(null)
-  const replaceImageInputRef = useRef<HTMLInputElement>(null)
-  const [uploadingImage, setUploadingImage] = useState(false)
-
-  // Capture the selected image's position BEFORE any async operation
-  // so we can still target it after the upload finishes
+  const replaceInputRef = useRef<HTMLInputElement>(null)
   const pendingReplacePos = useRef<number | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
 
   const { startUpload } = useUploadThing("workflowImageUploader")
 
@@ -44,11 +39,9 @@ export function WorkflowEditor({
       Placeholder.configure({
         placeholder: "Start writing your workflow steps...",
       }),
-      ImageResize.configure({
-        // ← free resize — drag handles appear on image corners when selected
-        minWidth: 100,
-        maxWidth: 800,
+      Image.configure({
         inline: false,
+        allowBase64: false,
         HTMLAttributes: {
           class: "rounded-lg max-w-full h-auto my-4 border",
         },
@@ -68,12 +61,10 @@ export function WorkflowEditor({
     editorProps: {
       attributes: {
         class: [
-          "prose prose-sm max-w-none w-full",
-          "focus:outline-none",
+          "prose prose-sm max-w-none w-full focus:outline-none",
           "min-h-[400px] px-5 py-4",
           "dark:prose-invert dark:prose-headings:text-white",
-          "dark:prose-p:text-white dark:prose-strong:text-white",
-          "dark:prose-li:text-white",
+          "dark:prose-p:text-white dark:prose-strong:text-white dark:prose-li:text-white",
         ].join(" "),
       },
     },
@@ -82,234 +73,271 @@ export function WorkflowEditor({
     },
   })
 
-  // ── Insert new image ────────────────────────────────────────────────────────
-  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  // ── Insert image ─────────────────────────────────────────────────────────────
+
+  async function handleInsertImage(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file || !editor) return
 
-    setUploadingImage(true)
-    const uploaded = await startUpload([file])
-
-    if (uploaded?.[0]?.ufsUrl) {
-      editor.chain().focus().setImage({ src: uploaded[0].ufsUrl }).run()
+    setIsUploading(true)
+    try {
+      const result = await startUpload([file])
+      if (result?.[0]?.ufsUrl) {
+        editor.chain().focus().setImage({ src: result[0].ufsUrl }).run()
+      }
+    } finally {
+      setIsUploading(false)
+      e.target.value = ""
     }
-
-    setUploadingImage(false)
-    e.target.value = ""
   }
 
-  // ── Replace selected image ──────────────────────────────────────────────────
-  function triggerReplace() {
+  // ── Replace image ────────────────────────────────────────────────────────────
+
+  function openReplaceDialog() {
     if (!editor) return
-    // Snapshot the position NOW — before the file dialog opens and
-    // before any async work starts, while the image is still selected
     pendingReplacePos.current = editor.state.selection.from
-    replaceImageInputRef.current?.click()
+    replaceInputRef.current?.click()
   }
 
   async function handleReplaceImage(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (!file || !editor) return
-
-    // Use the position we captured when the user clicked "Replace"
     const targetPos = pendingReplacePos.current
-    if (targetPos === null) return
+    if (!file || !editor || targetPos === null) return
 
-    setUploadingImage(true)
-    const uploaded = await startUpload([file])
-
-    if (uploaded?.[0]?.ufsUrl) {
-      const node = editor.state.doc.nodeAt(targetPos)
-
-      if (node && node.type.name === "image") {
-        // Dispatch a transaction directly to the exact node position
-        // This works even if editor focus/selection changed during upload
-        const tr = editor.state.tr.setNodeMarkup(targetPos, undefined, {
-          ...node.attrs,
-          src: uploaded[0].ufsUrl,
-        })
-        editor.view.dispatch(tr)
+    setIsUploading(true)
+    try {
+      const result = await startUpload([file])
+      if (result?.[0]?.ufsUrl) {
+        const node = editor.state.doc.nodeAt(targetPos)
+        if (node?.type.name === "image") {
+          const tr = editor.state.tr.setNodeMarkup(targetPos, undefined, {
+            ...node.attrs,
+            src: result[0].ufsUrl,
+          })
+          editor.view.dispatch(tr)
+        }
       }
+    } finally {
+      pendingReplacePos.current = null
+      setIsUploading(false)
+      e.target.value = ""
     }
-
-    pendingReplacePos.current = null
-    setUploadingImage(false)
-    e.target.value = ""
   }
 
-  // ── Delete selected image ───────────────────────────────────────────────────
+  // ── Delete image ─────────────────────────────────────────────────────────────
+
   function handleDeleteImage() {
     editor?.chain().focus().deleteSelection().run()
   }
 
   return (
     <div className="flex flex-col overflow-hidden rounded-lg border bg-background">
-      {/* Toolbar */}
+      {/* ── Toolbar ──────────────────────────────────────────────────────────── */}
       {editable && editor && (
         <div className="sticky top-0 z-10 flex flex-wrap items-center gap-1 border-b bg-muted/40 px-2 py-1.5">
           <ToolbarGroup>
-            <ToolbarButton
+            <ToolbarBtn
               onClick={() => editor.chain().focus().toggleBold().run()}
               active={editor.isActive("bold")}
-              label="B"
               title="Bold"
-            />
-            <ToolbarButton
+            >
+              <b>B</b>
+            </ToolbarBtn>
+            <ToolbarBtn
               onClick={() => editor.chain().focus().toggleItalic().run()}
               active={editor.isActive("italic")}
-              label="I"
               title="Italic"
-            />
+            >
+              <i>I</i>
+            </ToolbarBtn>
           </ToolbarGroup>
+
           <ToolbarDivider />
+
           <ToolbarGroup>
-            <ToolbarButton
+            <ToolbarBtn
               onClick={() =>
                 editor.chain().focus().toggleHeading({ level: 2 }).run()
               }
               active={editor.isActive("heading", { level: 2 })}
-              label="H2"
               title="Heading 2"
-            />
-            <ToolbarButton
+            >
+              H2
+            </ToolbarBtn>
+            <ToolbarBtn
               onClick={() =>
                 editor.chain().focus().toggleHeading({ level: 3 }).run()
               }
               active={editor.isActive("heading", { level: 3 })}
-              label="H3"
               title="Heading 3"
-            />
+            >
+              H3
+            </ToolbarBtn>
           </ToolbarGroup>
+
           <ToolbarDivider />
+
           <ToolbarGroup>
-            <ToolbarButton
+            <ToolbarBtn
               onClick={() => editor.chain().focus().toggleBulletList().run()}
               active={editor.isActive("bulletList")}
-              label="• List"
               title="Bullet list"
-            />
-            <ToolbarButton
+            >
+              • List
+            </ToolbarBtn>
+            <ToolbarBtn
               onClick={() => editor.chain().focus().toggleOrderedList().run()}
               active={editor.isActive("orderedList")}
-              label="1. List"
               title="Numbered list"
-            />
+            >
+              1. List
+            </ToolbarBtn>
           </ToolbarGroup>
+
           <ToolbarDivider />
+
           <ToolbarGroup>
-            <ToolbarButton
+            <ToolbarBtn
               onClick={() => editor.chain().focus().toggleCodeBlock().run()}
               active={editor.isActive("codeBlock")}
-              label="Code"
               title="Code block"
-            />
-            <ToolbarButton
+            >
+              Code
+            </ToolbarBtn>
+            <ToolbarBtn
               onClick={() => {
                 const url = window.prompt("Enter URL")
                 if (url) editor.chain().focus().setLink({ href: url }).run()
               }}
               active={editor.isActive("link")}
-              label="Link"
               title="Insert link"
-            />
+            >
+              Link
+            </ToolbarBtn>
           </ToolbarGroup>
+
           <ToolbarDivider />
+
+          {/* Image insert */}
           <ToolbarGroup>
             <input
               ref={imageInputRef}
               type="file"
               accept="image/*"
               className="hidden"
-              onChange={handleImageUpload}
+              onChange={handleInsertImage}
             />
-            <ToolbarButton
+            <ToolbarBtn
               onClick={() => imageInputRef.current?.click()}
               active={false}
-              label="Image"
               title="Upload image"
-              disabled={uploadingImage}
-            />
+              disabled={isUploading}
+            >
+              {isUploading ? (
+                <span className="flex items-center gap-1.5">
+                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Uploading...
+                </span>
+              ) : (
+                "Image"
+              )}
+            </ToolbarBtn>
           </ToolbarGroup>
-
-          {uploadingImage && (
-            <div className="ml-2 flex items-center gap-2">
-              <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              <span className="text-xs text-muted-foreground">
-                Uploading...
-              </span>
-            </div>
-          )}
         </div>
       )}
-      {/* Image BubbleMenu */}
+
+      {/* ── Image BubbleMenu ─────────────────────────────────────────────────── */}
       {editable && editor && (
-        <BubbleMenu
-          editor={editor}
-          shouldShow={({ editor }) => editor.isActive("image")}
-        >
+        <>
+          {/* Hidden replace input — outside BubbleMenu so it persists after menu closes */}
           <input
-            ref={replaceImageInputRef}
+            ref={replaceInputRef}
             type="file"
             accept="image/*"
             className="hidden"
             onChange={handleReplaceImage}
           />
 
-          <div className="flex items-center gap-1 rounded-lg border bg-background px-1.5 py-1 shadow-lg">
-            <button
-              type="button"
-              onClick={triggerReplace} // ← captures pos synchronously, THEN opens file dialog
-              disabled={uploadingImage}
-              className="flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
-            >
-              <svg
-                className="h-3.5 w-3.5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                />
-              </svg>
-              {uploadingImage ? "Uploading..." : "Replace"}
-            </button>
+          <BubbleMenu
+            editor={editor}
+            shouldShow={({ state }) => {
+              const { selection } = state
 
-            <div className="h-4 w-px bg-border" />
-
-            <button
-              type="button"
-              onClick={handleDeleteImage}
-              className="flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-50"
-            >
-              <svg
-                className="h-3.5 w-3.5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+              return (
+                selection instanceof NodeSelection &&
+                selection.node.type.name === "image"
+              )
+            }}
+          >
+            <div className="flex items-center gap-1 rounded-lg border bg-background px-1.5 py-1 shadow-md">
+              {/* Replace */}
+              <button
+                type="button"
+                onMouseDown={(e) => {
+                  // onMouseDown fires before onBlur deselects the image
+                  // Using it instead of onClick ensures the position is
+                  // still valid when we capture it
+                  e.preventDefault()
+                  openReplaceDialog()
+                }}
+                disabled={isUploading}
+                className="flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                />
-              </svg>
-              Delete
-            </button>
-          </div>
-        </BubbleMenu>
+                <svg
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+                {isUploading ? "Uploading..." : "Replace"}
+              </button>
+
+              <div className="h-4 w-px bg-border" />
+
+              {/* Delete */}
+              <button
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  handleDeleteImage()
+                }}
+                className="flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-50"
+              >
+                <svg
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+                Delete
+              </button>
+            </div>
+          </BubbleMenu>
+        </>
       )}
 
+      {/* ── Editor body ───────────────────────────────────────────────────────── */}
       <EditorContent
         editor={editor}
         className="w-full flex-1 cursor-text"
         onClick={() => editor?.commands.focus()}
       />
 
+      {/* ── Drag handle styles ────────────────────────────────────────────────── */}
       <style>{`
         .drag-handle {
           position: fixed; opacity: 1; transition: opacity ease-in 0.2s;
@@ -332,6 +360,8 @@ export function WorkflowEditor({
   )
 }
 
+// ─── Toolbar Primitives ───────────────────────────────────────────────────────
+
 function ToolbarGroup({ children }: { children: React.ReactNode }) {
   return <div className="flex items-center gap-0.5">{children}</div>
 }
@@ -340,18 +370,18 @@ function ToolbarDivider() {
   return <div className="mx-1 h-5 w-px bg-border" />
 }
 
-function ToolbarButton({
+function ToolbarBtn({
   onClick,
   active,
-  label,
   title,
   disabled,
+  children,
 }: {
   onClick: () => void
   active: boolean
-  label: string
   title?: string
   disabled?: boolean
+  children: React.ReactNode
 }) {
   return (
     <button
@@ -359,13 +389,13 @@ function ToolbarButton({
       onClick={onClick}
       title={title}
       disabled={disabled}
-      className={`rounded px-2 py-1 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+      className={`flex items-center rounded px-2 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
         active
           ? "bg-primary text-primary-foreground"
           : "text-foreground hover:bg-accent"
       }`}
     >
-      {label}
+      {children}
     </button>
   )
 }

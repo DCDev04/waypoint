@@ -43,12 +43,10 @@ export function WorkflowForm({
   departments,
 }: Props) {
   const isEditing = !!workflowId
-
   // Bind the workflowId into the action for edit mode
   const action = isEditing
     ? updateWorkflow.bind(null, workflowId)
     : createWorkflow
-
   const [serverState, formAction, isPending] = useActionState(
     action as (
       prev: WorkflowActionState,
@@ -56,7 +54,6 @@ export function WorkflowForm({
     ) => Promise<WorkflowActionState>,
     {}
   )
-
   const {
     register,
     control,
