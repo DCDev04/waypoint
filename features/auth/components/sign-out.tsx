@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { authClient } from "@/lib/auth-client"
+import { ArrowRightFromLineIcon, ArrowRightToLineIcon } from "lucide-react"
+import { Separator } from "@/components/ui/separator"
 
 export function SignOutButton() {
   const router = useRouter()
@@ -14,13 +16,15 @@ export function SignOutButton() {
   }
 
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      onClick={handleSignOut}
-      className="w-full justify-start text-muted-foreground hover:text-foreground"
-    >
-      Sign out
-    </Button>
+    <div>
+      <Button
+        variant="ghost"
+        onClick={handleSignOut}
+        className="w-full justify-start hover:text-foreground"
+      >
+        <ArrowRightToLineIcon />
+        Sign out
+      </Button>
+    </div>
   )
 }

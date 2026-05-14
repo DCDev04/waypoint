@@ -1,57 +1,52 @@
-import Link from "next/link"
 import type { SessionUser } from "@/lib/auth/session"
 import { SignOutButton } from "@/features/auth/components/sign-out"
+import { NavLinks } from "../ui/navbar"
+import { LayoutDashboard, PenBox, Settings, Workflow } from "lucide-react"
 
 const NAV_ITEMS = [
   {
+    label: "Admin Panel",
+    href: "/admin",
+    roles: ["ADMIN"],
+    icon: <LayoutDashboard className="mr-2 h-4 w-4" />,
+  },
+  {
     label: "Workflows",
     href: "/workflows",
-    roles: ["ADMIN", "DEVELOPER", "REPRESENTATIVE"], // all roles
+    roles: ["ADMIN", "DEVELOPER", "REPRESENTATIVE"],
+    icon: <Workflow className="mr-2 h-4 w-4" />,
   },
   {
     label: "Editor",
     href: "/workflows/new",
-    roles: ["ADMIN", "DEVELOPER"], // reps can't create
+    roles: ["ADMIN", "DEVELOPER"],
+    icon: <PenBox className="mr-2 h-4 w-4" />,
   },
-  {
-    label: "Admin Panel",
-    href: "/admin",
-    roles: ["ADMIN"], // admins only
-  },
+
   {
     label: "Settings",
     href: "/settings",
     roles: ["ADMIN", "DEVELOPER", "REPRESENTATIVE"],
+    icon: <Settings className="mr-2 h-4 w-4" />,
   },
 ]
 
 export function SidebarNav({ user }: { user: SessionUser }) {
-  const visibleItems = NAV_ITEMS.filter((item) =>
-    item.roles.includes(user.role)
-  )
-
   return (
-    <aside className="flex w-64 flex-col gap-2 border-r bg-background px-4 py-6">
-      <div className="mb-6 px-2">
-        <p className="text-lg font-semibold">Waypoint</p>
-        <p className="text-xs text-muted-foreground capitalize">
-          {user.role.toLowerCase()} · {user.name}
-        </p>
+    <aside className="hidden w-72 border-r bg-background/80 backdrop-blur xl:flex xl:flex-col">
+      <div className="flex h-16 items-center gap-3 border-b px-6">
+        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
+          <LayoutDashboard className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="text-lg font-semibold">Waypoint</p>
+          <p className="text-xs text-muted-foreground capitalize">
+            {user.role.toLowerCase()} · {user.name}
+          </p>
+        </div>
       </div>
-
-      <nav className="flex flex-col gap-1">
-        {visibleItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent"
-          >
-            {item.label}
-          </Link>
-        ))}
-      </nav>
-      <div className="mt-auto border-t pt-4">
-        <SignOutButton />
+      <div className="flex-1 space-y-2 p-4">
+        <NavLinks navItems={NAV_ITEMS} user={user} />
       </div>
     </aside>
   )
